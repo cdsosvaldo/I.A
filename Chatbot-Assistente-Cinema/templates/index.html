@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Chatbot - Assistente de cinema</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <main class="chatbot-main">
+        <section class="chatbot-container">
+            <header class="chatbot-header">
+                <h1>GUIA DE CINEMA</h1>
+            </header>
+            <div id="chat-window" class="chat-window">
+            </div>
+            <form id="chat-form" class="chat-form" enctype="multipart/form-data" autocomplete="off">
+                <div class="input-group">
+                    <textarea name="prompt" id="prompt" placeholder="Olá! Sou seu guia da sétima arte. No que posso ajudar?" required rows="1"></textarea>
+                    <label for="image" class="file-label">
+                        <input type="file" name="image" id="image" accept="image/*" hidden>
+                        <span class="file-btn">📎</span>
+                    </label>
+                    <button type="submit" class="send-btn">Enviar</button>
+                </div>
+            </form>
+            <div id="image-preview-container" style="width:100%;margin-top:10px;display:none;align-items:center;">
+                <img id="image-preview" style="max-width:120px;max-height:80px;border-radius:8px;border:1.5px solid #e3eafe;box-shadow:0 1px 4px #0001;object-fit:cover;" alt="Pré-visualização da imagem" />
+            </div>
+        </section>
+    </main>
+    <script>
+        const form = document.getElementById('chat-form');
+        const chatWindow = document.getElementById('chat-window');
+        const promptInput = document.getElementById('prompt');
+
+        const imageInput = document.getElementById('image');
+        const imagePreview = document.getElementById('image-preview');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+
+        imageInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreviewContainer.style.display = 'flex';
+                }
+                reader.readAsDataURL(file);
+            } else {
+                imagePreview.src = '';
+                imagePreviewContainer.style.display = 'none';
+            }
+        });
+        
+
+        function addMessage(content, sender = 'user') {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `chat-message ${sender}`;
+            msgDiv.innerHTML = content;
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        form.onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const userMsg = formData.get('prompt');
+        let imageTag = '';
+
+        if (imageInput.files && imageInput.files[0]) {
+            const file = imageInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                imageTag = `<img src="${e.target.result}" alt="Imagem enviada" style="max-width:120px;max-height:80px;border-radius:8px;margin-top:6px;box-shadow:0 1px 4px #0001;">`;
+                addMessage(`<span>${userMsg}</span><br>${imageTag}`, 'user');
+                promptInput.value = '';
+                imagePreview.src = '';
+                imagePreviewContainer.style.display = 'none';
+                imageInput.value = '';
+
+                addMessage('<span>Analisando...</span>', 'bot');
+                const res = await fetch("/chat", {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                const thinking = chatWindow.querySelector('.chat-message.bot:last-child');
+                if (thinking) thinking.remove();
+                addMessage(`<span>${data.response}</span>`, 'bot');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            addMessage(`<span>${userMsg}</span>`, 'user');
+            promptInput.value = '';
+            imagePreview.src = '';
+            imagePreviewContainer.style.display = 'none';
+            imageInput.value = '';
+
+            addMessage('<span>Analisando...</span>', 'bot');
+            const res = await fetch("/chat", {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+            const thinking = chatWindow.querySelector('.chat-message.bot:last-child');
+            if (thinking) thinking.remove();
+            addMessage(`<span>${data.response}</span>`, 'bot');
+        }
+    }
+
+        
+    </script>
+</body>
+</html>
